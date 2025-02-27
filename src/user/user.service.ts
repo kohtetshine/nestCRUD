@@ -11,46 +11,58 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export class UserService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createUser(data: Prisma.UserCreateInput): Promise<User> {
+  async createUser(data: Prisma.UserCreateInput) {
     try {
-      return await this.prisma.user.create({
+      const user = await this.prisma.user.create({
         data,
       });
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        // P2002 is the error code for unique constraint violation
-        if (error.code === 'P2002') {
-          const target = error.meta?.target as string[] | undefined;
-          if (target && target.includes('email')) {
-            throw new ConflictException('Email address is already in use');
-          }
-        }
+      if (!user) {
+        return { success: false, message: 'Failed to create user' };
       }
-      throw new InternalServerErrorException('Error creating user');
+      return {
+        success: true,
+        message: 'User created successfully',
+        data: user,
+      };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        return { success: false, message: 'Email address is already in use' };
+      }
+
+      return {
+        success: false,
+        message: 'Failed to create user. Please try again later.',
+      };
     }
   }
 
-  async getUsers(): Promise<User[]> {
-    return this.prisma.user.findMany();
+  async getUsers() {
+    const users = await this.prisma.user.findMany();
+    return { success: true, data: users };
   }
 
-  async getOneUser(id: number): Promise<User | null> {
-    return this.prisma.user.findUnique({
+  async getOneUser(id: number) {
+    const user = await this.prisma.user.findUnique({
       where: { id },
     });
+
+    if (!user) {
+      return { success: false, message: `User with ID ${id} not found` };
+    }
+
+    return user;
   }
 
   async updateUser(id: number, data: UpdateUserDto) {
     try {
-      console.log(`Updating user with ID: ${id}`);
-
-      // Fetch the existing user
       const user = await this.prisma.user.findUnique({ where: { id } });
       if (!user) {
         return { success: false, message: `User with ID ${id} not found` };
       }
 
-      // Handle email update validation
       if (data.email) {
         const existingUser = await this.prisma.user.findFirst({
           where: { email: data.email, id: { not: id } },
@@ -61,22 +73,17 @@ export class UserService {
         }
       }
 
-      // Perform user update
       const updatedUser = await this.prisma.user.update({
         where: { id },
         data,
       });
 
-      console.log('User successfully updated:', updatedUser);
       return {
         success: true,
         message: 'User updated successfully',
         data: updatedUser,
       };
     } catch (error) {
-      console.error('Error updating user:', error);
-
-      // Handle Prisma constraint error (duplicate email)
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
@@ -84,7 +91,6 @@ export class UserService {
         return { success: false, message: 'Email address is already in use' };
       }
 
-      // Return a general failure message instead of a 500 error
       return {
         success: false,
         message: 'Failed to update user. Please try again later.',
@@ -92,11 +98,21 @@ export class UserService {
     }
   }
 
-  async deleteUser(id: number): Promise<User> {
+  async deleteUser(id: number) {
     try {
-      return this.prisma.user.delete({
+      const user = await this.prisma.user.delete({
         where: { id },
       });
+
+      if (!user) {
+        return { success: false, message: `User with ID ${id} not found` };
+      }
+
+      return {
+        success: true,
+        message: `User deleted successfully`,
+        data: user,
+      };
     } catch (error) {
       throw new InternalServerErrorException('Error deleting user');
     }
