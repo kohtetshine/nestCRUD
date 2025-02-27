@@ -1,28 +1,39 @@
 import { Injectable } from '@nestjs/common';
 import { CreateTaskDto } from './dto/create-task.dto';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Task } from './entities/task.entity';
-import { Repository } from 'typeorm';
+import { PrismaService } from '../prisma/prisma.service';
+import { Task } from '@prisma/client';
 
 @Injectable()
 export class TaskService {
-  constructor(
-    @InjectRepository(Task)
-    private taskRepository: Repository<Task>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
+
   async createTask(createTaskDto: CreateTaskDto): Promise<Task> {
-    const task = this.taskRepository.create(createTaskDto);
-    return this.taskRepository.save(task);
+    return this.prisma.task.create({
+      data: createTaskDto,
+    });
   }
+
   getTasks(): Promise<Task[]> {
-    return this.taskRepository.find();
+    return this.prisma.task.findMany();
   }
 
-  getOne(id: number): string {
-    return `This action returns a #${id} task`;
+  getOne(id: number): Promise<Task | null> {
+    return this.prisma.task.findUnique({
+      where: { id },
+    });
   }
 
-  deleteTask(id: number): string {
-    return `This action removes a #${id} task`;
+  makeComplete(id: number): Promise<Task> {
+    return this.prisma.task.update({
+      where: { id },
+      data: { completed: true },
+    });
+  }
+
+  async deleteTask(id: number): Promise<string> {
+    await this.prisma.task.delete({
+      where: { id },
+    });
+    return 'Task deleted successfully';
   }
 }
