@@ -8,7 +8,7 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // Strip properties that don't have decorators
-      forbidNonWhitelisted: true, // Throw errors if non-whitelisted properties are present
+      //forbidNonWhitelisted: true, // Throw errors if non-whitelisted properties are present
       transform: true, // Automatically transform payloads to be objects typed according to their DTO classes
       stopAtFirstError: true, // Show only the first error for each property
       validationError: { target: false }, // Don't include the target object in the error response
